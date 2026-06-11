@@ -1,59 +1,342 @@
-<div>Teachable Machine Image Model</div>
-<button type="button" onclick="init()">Start</button>
-<div id="webcam-container"></div>
-<div id="label-container"></div>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-<script type="text/javascript">
-    // More API functions here:
-    // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/image
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisionAI - Advanced Eye Screening</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tfjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    // the link to your model provided by Teachable Machine export panel
-    const URL = "./";
-
-    let model, webcam, labelContainer, maxPredictions;
-
-    // Load the image model and setup the webcam
-    async function init() {
-        const modelURL = URL + "model.json";
-        const metadataURL = URL + "metadata.json";
-
-        // load the model and metadata
-        // Refer to tmImage.loadFromFiles() in the API to support files from a file picker
-        // or files from your local hard drive
-        // Note: the pose library adds "tmImage" object to your window (window.tmImage)
-        model = await tmImage.load(modelURL, metadataURL);
-        maxPredictions = model.getTotalClasses();
-
-        // Convenience function to setup a webcam
-        const flip = true; // whether to flip the webcam
-        webcam = new tmImage.Webcam(200, 200, flip); // width, height, flip
-        await webcam.setup(); // request access to the webcam
-        await webcam.play();
-        window.requestAnimationFrame(loop);
-
-        // append elements to the DOM
-        document.getElementById("webcam-container").appendChild(webcam.canvas);
-        labelContainer = document.getElementById("label-container");
-        for (let i = 0; i < maxPredictions; i++) { // and class labels
-            labelContainer.appendChild(document.createElement("div"));
+    <style>
+        :root {
+            --bg-dark: #060913;
+            --panel-bg: #0d1527;
+            --neon-blue: #00f2fe;
+            --neon-purple: #9d4edd;
+            --neon-green: #00ff87;
+            --neon-red: #ff3366;
+            --text-main: #e2e8f0;
+            --text-muted: #64748b;
+            --border-glow: rgba(0, 242, 254, 0.15);
         }
-    }
 
-    async function loop() {
-        webcam.update(); // update the webcam frame
-        await predict();
-        window.requestAnimationFrame(loop);
-    }
-
-    // run the webcam image through the image model
-    async function predict() {
-        // predict can take in an image, video or canvas html element
-        const prediction = await model.predict(webcam.canvas);
-        for (let i = 0; i < maxPredictions; i++) {
-            const classPrediction =
-                prediction[i].className + ": " + prediction[i].probability.toFixed(2);
-            labelContainer.childNodes[i].innerHTML = classPrediction;
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; }
+        
+        body { 
+            background-color: var(--bg-dark); 
+            color: var(--text-main); 
+            min-height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 20px;
+            background-image: radial-gradient(circle at 50% 50%, #101f3d 0%, #060913 80%);
         }
-    }
-</script>
+
+        .cyber-container { 
+            width: 100%; 
+            max-width: 500px; 
+            background: var(--panel-bg); 
+            border-radius: 24px; 
+            padding: 35px 25px; 
+            box-shadow: 0 0 40px rgba(0, 242, 254, 0.1); 
+            border: 1px solid rgba(0, 242, 254, 0.2); 
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ตกแต่งหัวข้อสไตล์ไซไฟ */
+        header h1 { 
+            font-family: 'Orbitron', sans-serif; 
+            font-size: 2.5rem; 
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+        }
+        header p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px;}
+
+        /* สถานะโหลดสมองกล */
+        .status-badge { 
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 18px; border-radius: 30px; font-size: 0.85rem; 
+            background: rgba(0, 242, 254, 0.05); color: var(--neon-blue); 
+            margin-bottom: 25px; border: 1px solid rgba(0, 242, 254, 0.2);
+            font-weight: 600;
+        }
+
+        /* กล่องหน้าจอแสดงผลกล้อง/รูปภาพ */
+        .display-box { 
+            position: relative; width: 100%; aspect-ratio: 4/3; 
+            background: #020408; border-radius: 16px; overflow: hidden; 
+            border: 2px solid rgba(0, 242, 254, 0.2); margin-bottom: 25px; 
+            display: flex; justify-content: center; align-items: center; 
+        }
+        #webcam-container, #image-preview { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        #webcam-container video, #image-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* เอฟเฟกต์เส้นเลเซอร์สแกนม่านตา */
+        .scan-line {
+            position: absolute; width: 100%; height: 4px;
+            background: linear-gradient(to bottom, transparent, var(--neon-blue), transparent);
+            top: 0; left: 0; z-index: 5; display: none;
+            animation: scanAnim 2s linear infinite;
+            box-shadow: 0 0 12px var(--neon-blue);
+        }
+        @keyframes scanAnim {
+            0% { top: 0%; }
+            50% { top: 100%; }
+            100% { top: 0%; }
+        }
+
+        /* เป้าเล็งม่านตากลางจอ */
+        .reticle {
+            position: absolute; width: 160px; height: 160px;
+            border: 2px dashed var(--neon-blue); border-radius: 50%;
+            display: none; z-index: 4; opacity: 0.4;
+            animation: rotateReticle 10s linear infinite;
+        }
+        @keyframes rotateReticle { 100% { transform: rotate(360deg); } }
+
+        /* ส่วนควบคุมปุ่มกด */
+        .control-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 25px; }
+        .btn { 
+            color: #020408; border: none; padding: 14px 20px; 
+            font-size: 1rem; font-weight: 700; border-radius: 12px; 
+            cursor: pointer; width: 100%; transition: all 0.3s ease; 
+            display: flex; justify-content: center; align-items: center; gap: 10px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .btn-primary { background: linear-gradient(135deg, var(--neon-blue), #0077ff); box-shadow: 0 0 15px rgba(0, 242, 254, 0.4); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 25px rgba(0, 242, 254, 0.6); }
+        .btn-secondary { background: transparent; color: var(--neon-purple); border: 2px solid var(--neon-purple); }
+        .btn-secondary:hover { background: rgba(157, 78, 221, 0.1); }
+        .btn:disabled { background: #1e293b !important; color: #475569 !important; border: none !important; box-shadow: none !important; cursor: not-allowed; transform: none; }
+
+        /* ส่วนแสดงผลลัพธ์ */
+        .result-box { 
+            margin-top: 10px; padding: 20px; background: rgba(2, 4, 8, 0.5); 
+            border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); display: none; 
+        }
+        .prediction-bar { margin-bottom: 15px; text-align: left; }
+        .prediction-bar:last-child { margin-bottom: 0; }
+        .label-text { display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 6px; font-weight: 600; }
+        .progress-track { width: 100%; height: 10px; background: #12192c; border-radius: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #0077ff, var(--neon-green)); transition: width 0.5s cubic-bezier(0.1, 0.8, 0.3, 1); }
+
+        /* ⚠️ กล่องคำเตือนทางการแพทย์ที่ขอเพิ่มเติม */
+        .medical-disclaimer {
+            margin-top: 25px; padding: 15px 18px; background: rgba(255, 51, 102, 0.05);
+            border-radius: 14px; border: 1px solid rgba(255, 51, 102, 0.2);
+            text-align: left; font-size: 0.85rem; line-height: 1.5; color: #fecdd3;
+            display: none;
+        }
+        .medical-disclaimer i { color: var(--neon-red); margin-right: 5px; font-size: 1rem; }
+    </style>
+</head>
+<body>
+
+    <div class="cyber-container">
+        <header>
+            <h1>VISION AI</h1>
+            <p>Retinal & Ocular Screening System</p>
+        </header>
+
+        <div id="status-badge" class="status-badge">
+            <i class="fa-solid fa-sync fa-spin"></i> INITIALIZING AI SYSTEM...
+        </div>
+
+        <div class="display-box">
+            <div id="scan-line" class="scan-line"></div>
+            <div id="reticle" class="reticle"></div>
+            
+            <div id="webcam-container"></div>
+            <div id="image-preview"></div>
+            
+            <div id="placeholder-icon" style="color: #17233b; font-size: 5rem; position: absolute; z-index: 1;">
+                <i class="fa-solid fa-eye"></i>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <button id="start-btn" class="btn btn-primary" onclick="initWebcam()" disabled>
+                <i class="fa-solid fa-video"></i> เปิดกล้องสแกนม่านตา
+            </button>
+            
+            <button id="upload-trigger" class="btn btn-secondary" onclick="document.getElementById('file-input').click()" disabled>
+                <i class="fa-solid fa-upload"></i> อัปโหลดรูปภาพดวงตา
+            </button>
+            <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+        </div>
+
+        <div id="result-box" class="result-box">
+            <div id="label-container"></div>
+        </div>
+
+        <div id="disclaimer" class="medical-disclaimer">
+            <p><i class="fa-solid fa-circle-exclamation"></i> <strong>คำเตือนข้อจำกัดความรับผิดชอบ:</strong> 
+            ระบบนี้เป็นเพียงการประเมินวิเคราะห์แนวโน้มเบื้องต้นของปัญญาประดิษฐ์ (AI) เท่านั้น 
+            ผลลัพธ์นี้<strong>ไม่ใช่การวินิจฉัยโรคทางการแพทย์</strong>และไม่สามารถนำไปใช้อ้างอิงแทนดุลยพินิจของแพทย์ได้ 
+            หากท่านมีความเสี่ยงหรือมีอาการผิดปกติเกี่ยวกับดวงตา โปรดเข้าพบจักษุแพทย์เพื่อรับการตรวจวินิจฉัยและการรักษาที่ถูกต้องทันที</p>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        // เรียกไฟล์โมเดลจากหน้าแรกสุดในโฟลเดอร์เดียวกันตรงๆ
+        const URL = "./"; 
+
+        let model, webcam, labelContainer, maxClassIdentifiers, isWebcamMode = false;
+        const statusBadge = document.getElementById("status-badge");
+        const startBtn = document.getElementById("start-btn");
+        const uploadTrigger = document.getElementById("upload-trigger");
+        const resultBox = document.getElementById("result-box");
+        const disclaimer = document.getElementById("disclaimer");
+        const placeholder = document.getElementById("placeholder-icon");
+        const scanLine = document.getElementById("scan-line");
+        const reticle = document.getElementById("reticle");
+
+        // ฟังก์ชันระบบดาวน์โหลดไฟล์สมองกลเมื่อเปิดเว็บ
+        async function loadModel() {
+            try {
+                model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+                maxClassIdentifiers = model.getTotalClasses();
+                
+                statusBadge.innerHTML = '<i class="fa-solid fa-shield-halved"></i> AI CORE ONLINE & READY';
+                statusBadge.style.color = "var(--neon-green)";
+                statusBadge.style.background = "rgba(0, 255, 135, 0.05)";
+                statusBadge.style.borderColor = "rgba(0, 255, 135, 0.3)";
+                
+                startBtn.disabled = false;
+                uploadTrigger.disabled = false;
+            } catch (e) {
+                console.error(e);
+                statusBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ERROR: MODEL NOT FOUND';
+                statusBadge.style.color = "var(--neon-red)";
+                statusBadge.style.background = "rgba(255, 51, 102, 0.05)";
+                statusBadge.style.borderColor = "rgba(255, 51, 102, 0.3)";
+            }
+        }
+
+        // โหมดการทำงานที่ 1: การเปิดกล้องคัดกรองสด
+        async function initWebcam() {
+            startBtn.disabled = true;
+            uploadTrigger.disabled = false;
+            isWebcamMode = true;
+            
+            // ล้างหน้าจอรูปอัปโหลดออกไปก่อน
+            document.getElementById("image-preview").innerHTML = "";
+            placeholder.style.display = "none";
+            scanLine.style.display = "block";
+            reticle.style.display = "block";
+            resultBox.style.display = "block";
+            disclaimer.style.display = "block";
+
+            try {
+                webcam = new tmImage.Webcam(400, 300, false);
+                await webcam.setup({ facingMode: "environment" }); // เรียกใช้กล้องหลังมือถืออัตโนมัติ
+                await webcam.play();
+                window.requestAnimationFrame(loopWebcam);
+
+                const container = document.getElementById("webcam-container");
+                container.innerHTML = "";
+                container.appendChild(webcam.canvas);
+                setupResultUI();
+            } catch (err) {
+                alert("เข้าถึงกล้องล้มเหลว โปรดตรวจสอบสิทธิ์การใช้กล้องในเบราว์เซอร์");
+                startBtn.disabled = false;
+            }
+        }
+
+        async function loopWebcam() {
+            if (!isWebcamMode) return;
+            webcam.update();
+            await predict(webcam.canvas);
+            window.requestAnimationFrame(loopWebcam);
+        }
+
+        // โหมดการทำงานที่ 2: รองรับการอัปโหลดไฟล์รูปภาพจากความต้องการของผู้ใช้
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // ปิดระบบโหมดสแกนจากกล้องหากทำงานอยู่
+            if (isWebcamMode && webcam) {
+                await webcam.stop();
+                isWebcamMode = false;
+                document.getElementById("webcam-container").innerHTML = "";
+            }
+
+            placeholder.style.display = "none";
+            scanLine.style.display = "block";
+            reticle.style.display = "block";
+            resultBox.style.display = "block";
+            disclaimer.style.display = "block";
+            startBtn.disabled = false;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imgContainer = document.getElementById("image-preview");
+                imgContainer.innerHTML = `<img id="uploaded-img" src="${e.target.result}">`;
+                
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = async function() {
+                    setupResultUI();
+                    await predict(img); // ส่งรูปภาพเข้าไปให้สมองกลคำนวณผลทันที
+                }
+            }
+            reader.readAsDataURL(file);
+        }
+
+        // ฟังก์ชันสร้างแถบเปอร์เซ็นต์ผลลัพธ์
+        function setupResultUI() {
+            labelContainer = document.getElementById("label-container");
+            labelContainer.innerHTML = "";
+            for (let i = 0; i < maxClassIdentifiers; i++) {
+                labelContainer.insertAdjacentHTML('beforeend', `
+                    <div class="prediction-bar">
+                        <div class="label-text">
+                            <span id="class-name-${i}">-</span>
+                            <span id="class-pct-${i}">0%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div id="bar-fill-${i}" class="progress-fill"></div>
+                        </div>
+                    </div>`);
+            }
+        }
+
+        // ฟังก์ชันประมวลผลแยกแยะรูปภาพ (ทำงานร่วมกันทั้งโหมดกล้องและโหมดรูปอัปโหลด)
+        async function predict(inputElement) {
+            const prediction = await model.predict(inputElement);
+            for (let i = 0; i < maxClassIdentifiers; i++) {
+                let className = prediction[i].className;
+                
+                // คัดกรองและปรับคำศัพท์ให้แสดงผลเหมาะสมและเป็นมิตรกับผู้ใช้งานมากขึ้น
+                if(className === 'ต้อหิน') className = "⚠️ สัญญาณความเสี่ยงโรคต้อหิน (Glaucoma Detected)";
+                if(className === 'ต้อเนื้อ') className = "⚠️ สัญญาณความเสี่ยงโรคต้อเนื้อ (Pterygium Detected)";
+                if(className.toLowerCase() === 'normal' || className === 'ปกติ') className = "✅ ไม่พบความสว่างผิดปกติวิกฤต (Normal)";
+
+                const probability = (prediction[i].probability * 100).toFixed(1);
+                
+                document.getElementById(`class-name-${i}`).innerText = className;
+                document.getElementById(`class-pct-${i}`).innerText = probability + "%";
+                document.getElementById(`bar-fill-${i}`).style.width = probability + "%";
+            }
+        }
+
+        // สั่งให้ระบบทำงานฟังก์ชันดาวน์โหลดสมองกลทันทีเมื่อหน้าเว็บโหลดเสร็จสิ้น
+        window.onload = loadModel;
+    </script>
+</body>
+</html>
